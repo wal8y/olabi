@@ -18,11 +18,17 @@ class _EditRecordPageState extends State<EditRecordPage> {
   final _formKey = GlobalKey<FormState>();
   late Map<String, dynamic> _recordData;
   final ImagePicker _picker = ImagePicker();
+  late TextEditingController _birthDateController;
+  late String _works;
+  late String _previousJobAnswer;
 
   @override
   void initState() {
     super.initState();
     _recordData = Map<String, dynamic>.from(widget.record);
+    _birthDateController = TextEditingController(text: _recordData['birthDate']);
+    _works = _recordData['works'];
+    _previousJobAnswer = _recordData['previousJobAnswer'];
   }
 
   Future<void> _updateRecord() async {
@@ -163,6 +169,23 @@ class _EditRecordPageState extends State<EditRecordPage> {
                         const SizedBox(height: 20),
                       ],
                     ),
+                // Work information
+                TextFormField(
+                  initialValue: _recordData['currentJob'],
+                  decoration: const InputDecoration(
+                    labelText: 'العمل الحالي',
+                    labelStyle: TextStyle(color: Colors.white),
+                  ),
+                  onSaved: (value) => _recordData['currentJob'] = value,
+                ),
+                TextFormField(
+                  initialValue: _recordData['previousJob'],
+                  decoration: const InputDecoration(
+                    labelText: 'العمل السابق',
+                    labelStyle: TextStyle(color: Colors.white),
+                  ),
+                  onSaved: (value) => _recordData['previousJob'] = value,
+                ),
               ],
             ),
           ),

@@ -25,10 +25,10 @@ class _AddRecordPageState extends State<AddRecordPage> {
   File? _idBackImage;
   List<File> _extraDocs = [];
 
-  // المتغيرات الشرطية.
   String? _maritalStatus;
+  String? _gender;
   DateTime? _birthDate;
-  String? _regimeRelativeAnswer; // "نعم" أو "لا"
+  String? _regimeRelativeAnswer; 
   String? _isisRelativeAnswer;
   String? _prisonRelativeAnswer;
 
@@ -49,7 +49,6 @@ class _AddRecordPageState extends State<AddRecordPage> {
     if (widget.record != null) {
       _recordData = Map<String, dynamic>.from(widget.record!);
       
-      // Initialize images if they exist
       if (_recordData['mainImage'] != null) {
         _mainImage = File(_recordData['mainImage']);
       }
@@ -60,17 +59,21 @@ class _AddRecordPageState extends State<AddRecordPage> {
         _idBackImage = File(_recordData['idBack']);
       }
       
-      // Initialize extra docs if they exist
       if (_recordData['extraDocs'] != null) {
         final docs = List<String>.from(jsonDecode(_recordData['extraDocs']));
         _extraDocs = docs.map((path) => File(path)).toList();
       }
       
-      // Initialize other fields
       _maritalStatus = _recordData['maritalStatus'];
       _educationLevel = _recordData['educationLevel'];
       _major = _recordData['major'];
       _works = _recordData['works'];
+      _previousJobAnswer = _recordData['previousJobAnswer'];
+      _gender = _recordData['gender'];
+      _birthDate = _recordData['birthDate'] != null ? DateTime.parse(_recordData['birthDate']) : null;
+      if (_birthDate != null) {
+        _birthDateController.text = "${_birthDate!.toLocal()}".split(' ')[0];
+      }
     }
   }
 
@@ -102,7 +105,7 @@ class _AddRecordPageState extends State<AddRecordPage> {
   }
 
   Future<void> _pickExtraDocImage() async {
-    if (_extraDocs.length >= 20) return; // حد أقصى 20 وثيقة
+    if (_extraDocs.length >= 20) return;
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
@@ -129,7 +132,6 @@ class _AddRecordPageState extends State<AddRecordPage> {
 
   @override
   Widget build(BuildContext context) {
-    // استخدام Directionality لجعل التخطيط من اليمين إلى اليسار.
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -163,13 +165,13 @@ class _AddRecordPageState extends State<AddRecordPage> {
                     ),
                   ]),
                   const SizedBox(height: 20),
-                  // قسم المعلومات الشخصية والإدارية.
                   _buildSection('المعلومات الشخصية', [
                     _buildTextField('الاسم الأول', 'name'),
                     _buildTextField('الاسم الأخير', 'surname'),
                     _buildTextField('اسم الأب', 'fatherName'),
                     _buildTextField('اسم الأم', 'motherName'),
                     _buildTextField('محل الميلاد', 'birthPlace'),
+                    _buildEducationDropdown(),
                     _buildDateField('تاريخ الميلاد', _birthDateController, _selectBirthDate),
                     _buildTextField('الرقم الوطني', 'nationalId'),
                   ]),
@@ -188,8 +190,8 @@ class _AddRecordPageState extends State<AddRecordPage> {
                   _buildSection('الحالة الاجتماعية', [
                     _buildMaritalStatusDropdown(),
                     if (_maritalStatus == 'متزوج')
-                      _buildTextField('اسم الزوجة', 'spouseName'),
-                    if (_maritalStatus == 'متزوج')
+                      _buildTextField('اسماء الزوجات', 'spouseName'),
+                    if (_maritalStatus != 'أعزب')
                       _buildTextField('عدد الأولاد', 'childrenCount', keyboardType: TextInputType.number),
                   ]),
                   _buildSection('المعلومات السكنية', [
@@ -199,7 +201,6 @@ class _AddRecordPageState extends State<AddRecordPage> {
                     _buildTextField('اسم الحي', 'neighborhood'),
                     _buildTextField('أقرب معلم بارز', 'nearestLandmark'),
                   ]),
-                  // قسم المعلومات التعليمية الذكية.
                   _buildSection('المعلومات التعليمية', [
                     _buildEducationDropdown(),
                     if (_educationLevel != null &&
@@ -478,6 +479,41 @@ class _AddRecordPageState extends State<AddRecordPage> {
     );
   }
 
+
+  Widget _buildGenderDropdown(){
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 300),
+          child: DropdownButtonFormField<String>(
+            decoration: const InputDecoration(
+              labelText: 'الجنس',
+              labelStyle: TextStyle(color: Colors.white),
+              border: OutlineInputBorder(),
+            ),
+            value: _gender,
+            items: const [
+              DropdownMenuItem(value: 'ذكر', child: Text('ذكر', style: TextStyle(color: Colors.white))),
+              DropdownMenuItem(value: 'انثى', child: Text('انثى', style: TextStyle(color: Colors.white)))
+            ],
+            onChanged: (value) {
+              setState(() {
+                _gender = value;
+              });
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'الجنس مطلوب';
+              }
+              return null;
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMaritalStatusDropdown() {
     return Center(
       child: Padding(
@@ -642,7 +678,6 @@ class _AddRecordPageState extends State<AddRecordPage> {
     );
   }
 
-  // دالة عامة لأسئلة الأقارب.
   Widget _buildRelativeQuestion(String question, String fieldName, Function(String) onChanged) {
     return Center(
       child: Padding(
@@ -682,12 +717,10 @@ class _AddRecordPageState extends State<AddRecordPage> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       
-      // Set creation date if it's a new record
       if (widget.record == null) {
         _recordData['createdAt'] = DateTime.now().toIso8601String();
       }
       
-      // Save images and other data
       _recordData['mainImage'] = _mainImage?.path;
       _recordData['idFront'] = _idFrontImage?.path;
       _recordData['idBack'] = _idBackImage?.path;
@@ -695,6 +728,9 @@ class _AddRecordPageState extends State<AddRecordPage> {
       _recordData['educationLevel'] = _educationLevel;
       _recordData['major'] = _major;
       _recordData['works'] = _works;
+      _recordData['currentJob'] = _works == 'نعم' ? _recordData['currentJob'] : null;
+      _recordData['previousJob'] = _previousJobAnswer;
+      _recordData['previousJob'] = _previousJobAnswer == 'نعم' ? _recordData['previousJob'] : null;
 
       try {
         final dbHelper = DatabaseHelper();
@@ -760,7 +796,6 @@ class _AddRecordPageState extends State<AddRecordPage> {
             }
           },
         ),
-        // Display current addresses
         if (_recordData['addresses'] != null)
           ...List<String>.from(jsonDecode(_recordData['addresses'])).map((address) => 
             ListTile(

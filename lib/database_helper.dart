@@ -141,11 +141,7 @@ Future<void> _onCreate(Database db, int version) async {
       throw Exception('Database file not found');
     }
 
-    final exportDir = await getExternalStorageDirectory();
-    if (exportDir == null) {
-      throw Exception('Could not access external storage');
-    }
-
+    final exportDir = await getApplicationDocumentsDirectory();
     final exportPath = '${exportDir.path}/esyria_export_${DateTime.now().millisecondsSinceEpoch}.sql';
     final exportFile = File(exportPath);
 
