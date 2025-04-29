@@ -6,6 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:excel/excel.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -205,5 +206,94 @@ Future<void> _onCreate(Database db, int version) async {
       where: 'id = ?',
       whereArgs: [record['id']],
     );
+  }
+
+  Future<void> exportToExcel() async {
+    final db = await database;
+    final excel = Excel.createExcel();
+    
+    final sheet = excel['records'];
+    final headers = [
+      'id', 'name', 'surname', 'fatherName', 'motherName', 'birthPlace', 
+      'birthDate', 'nationalId', 'registryOffice', 'registrationNumber',
+      'gender', 'faceColor', 'eyeColor', 'addresses', 'distinctiveMarks',
+      'contactInfo', 'currentResidence', 'previousResidence', 'maritalStatus',
+      'spouseName', 'childrenCount', 'wives', 'children', 'address', 'areaName',
+      'neighborhood', 'nearestLandmark', 'educationLevel', 'major', 'currentJob',
+      'previousJob', 'financialStatus', 'ethicalConduct', 'militaryService',
+      'joinedFactions', 'revolutionStance', 'relativesWithRegime', 'regimeRelation',
+      'regimeInfluence', 'relativesWithISIS', 'isisRelation', 'isisInfluence',
+      'imprisonedRelatives', 'imprisonmentReason', 'prisonLocation', 'prisonRelation',
+      'prisonInfluence', 'religiousCommitment', 'intellectualOrientation',
+      'societyInfluence', 'personalTraits', 'lifeSummary', 'securityReport',
+      'pastActivities', 'criminalRecord', 'influentialRelations', 'trustLevel',
+      'pastMovements', 'weaponPossession', 'booksRead', 'religiousActivities',
+      'assets', 'suspiciousTransactions', 'socialNetworks', 'createdAt',
+      'mainImage', 'idFront', 'idBack', 'extraDocs', 'works'
+    ];
+
+    for (var i = 0; i < headers.length; i++) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).value = TextCellValue(headers[i]);
+    }
+
+    final records = await db.query('records');
+
+    for (var i = 0; i < records.length; i++) {
+      final record = records[i];
+      for (var j = 0; j < headers.length; j++) {
+        final value = record[headers[j].toLowerCase().replaceAll(' ', '')]?.toString() ?? '';
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: j, rowIndex: i + 1)).value = TextCellValue(value);
+      }
+    }
+
+    final exportDir = await getApplicationDocumentsDirectory();
+    final exportPath = '${exportDir.path}/esyria_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+    final file = File(exportPath);
+    final bytes = excel.encode();
+    if (bytes == null) {
+      throw Exception('Failed to encode Excel file');
+    }
+    await file.writeAsBytes(bytes);
+  }
+
+  Future<void> importFromExcel(File excelFile) async {
+    final db = await database;
+    final bytes = await excelFile.readAsBytes();
+    final excel = Excel.decodeBytes(bytes);
+    
+    final sheet = excel['records'];
+    if (sheet == null) {
+      throw Exception('Sheet "records" not found in Excel file');
+    }
+
+    final headers = <String>[];
+    for (var cell in sheet.row(0)) {
+      if (cell?.value != null) {
+        headers.add(cell!.value.toString());
+      }
+    }
+
+    for (var row in sheet.rows.skip(1)) {
+      final record = <String, dynamic>{};
+      for (var i = 0; i < headers.length; i++) {
+        final header = headers[i].toLowerCase().replaceAll(' ', '');
+        final value = row[i]?.value?.toString();
+        if (value != null && value.isNotEmpty) {
+          record[header] = value;
+        }
+      }
+
+      final existing = await db.query(
+        'records',
+        where: 'id = ?',
+        whereArgs: [record['id']],
+      );
+
+      if (existing.isNotEmpty) {
+        await db.update('records', record, where: 'id = ?', whereArgs: [record['id']]);
+      } else {
+        await db.insert('records', record);
+      }
+    }
   }
 }
